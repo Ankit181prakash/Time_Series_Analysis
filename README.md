@@ -1,2 +1,912 @@
-# Time_Series_Analysis
-Spacecraft telemetry monitoring, forecasting, anomaly detection, and mission support
+# Spacecraft Agent
+
+### AI-powered spacecraft telemetry monitoring, forecasting, anomaly detection, and mission support
+
+Spacecraft Agent is an end-to-end project that combines **Time-Series Analysis, Machine Learning, Deep Learning, and Agentic AI** to build an intelligent system for monitoring a simulated spacecraft.
+
+The basic idea is simple:
+
+> Instead of only showing spacecraft telemetry on a dashboard, can we build a system that can understand the telemetry, predict what may happen next, investigate unusual behavior, and explain what is happening?
+
+That's what this project tries to achieve.
+
+The system works with simulated spacecraft telemetry containing information about the battery, solar panels, CPU, memory, reaction wheels, spacecraft attitude, communication system, and propellant.
+
+---
+
+## Why this project?
+
+Spacecraft continuously generate telemetry from different subsystems.
+
+A traditional monitoring system might look like:
+
+```text
+Telemetry
+   ↓
+Threshold Check
+   ↓
+Alert
+```
+
+For example:
+
+> Battery temperature > threshold → Alert
+
+But this doesn't answer questions such as:
+
+* Why did the temperature increase?
+* Is this behavior actually unusual for the current mission phase?
+* What other telemetry values changed at the same time?
+* What is likely to happen in the next few minutes?
+* Which subsystem might be involved?
+* What does the technical documentation say about this behavior?
+* What should the operator investigate next?
+
+This project tries to move toward:
+
+```text
+Telemetry
+   ↓
+Analyze
+   ↓
+Predict
+   ↓
+Detect Anomaly
+   ↓
+Investigate
+   ↓
+Reason
+   ↓
+Recommend
+   ↓
+Monitor
+```
+
+---
+
+# What does the system do?
+
+The project has two major parts.
+
+### 1. Machine Learning and Time-Series System
+
+This part works directly with spacecraft telemetry.
+
+It performs:
+
+* Data cleaning
+* Exploratory Data Analysis
+* Time-Series Analysis
+* Feature Engineering
+* Forecasting
+* Anomaly Detection
+* Model Explainability
+
+### 2. Agentic AI System
+
+This part sits on top of the ML system.
+
+The agents can:
+
+* Decide which tools to use
+* Query telemetry
+* Run forecasting models
+* Investigate anomalies
+* Retrieve technical information
+* Combine results from different sources
+* Generate explanations
+* Make recommendations
+* Monitor the outcome
+
+The LLM isn't being used as a replacement for the ML models.
+
+Instead:
+
+```text
+                 Agent
+                   │
+        ┌──────────┼──────────┐
+        ↓          ↓          ↓
+     Forecast   Anomaly      RAG
+       Model      Model    Knowledge
+        │          │          │
+        └──────────┼──────────┘
+                   ↓
+              AI Reasoning
+                   ↓
+             Recommendation
+```
+
+---
+
+# Dataset
+
+The project uses a **synthetically generated spacecraft telemetry dataset containing 5,00,000 observations**.
+
+The telemetry is recorded at one-minute intervals and represents different spacecraft subsystems.
+
+The dataset contains:
+
+* Battery measurements
+* Solar-panel measurements
+* CPU and memory measurements
+* Reaction-wheel measurements
+* Attitude information
+* Communication measurements
+* Propellant information
+* Mission phases
+* Anomaly labels
+
+The dataset also contains intentionally introduced anomalies and missing values so that the complete data-processing and anomaly-detection pipeline can be demonstrated.
+
+> **Important:** The dataset is synthetic and is not real spacecraft telemetry.
+
+---
+
+# Dataset Attributes
+
+| Attribute                       | Description                                                                                        |
+| ------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `timestamp`                     | The exact date and time at which the spacecraft telemetry was recorded.                            |
+| `spacecraft_id`                 | Unique identifier assigned to the spacecraft generating the telemetry.                             |
+| `mission_phase`                 | Indicates the current operational phase of the spacecraft mission.                                 |
+| `battery_voltage`               | Voltage level produced by the spacecraft battery in volts.                                         |
+| `battery_current`               | Electrical current flowing through the spacecraft battery in amperes.                              |
+| `battery_temperature`           | Current temperature of the spacecraft battery in degrees Celsius.                                  |
+| `battery_soc`                   | Battery State of Charge representing the remaining battery capacity as a percentage.               |
+| `solar_panel_voltage`           | Voltage generated by the spacecraft's solar panels in volts.                                       |
+| `solar_panel_current`           | Electrical current generated by the solar panels in amperes.                                       |
+| `cpu_temperature`               | Temperature of the spacecraft's onboard processing unit in degrees Celsius.                        |
+| `cpu_load`                      | Percentage of spacecraft CPU processing capacity currently being utilized.                         |
+| `memory_usage`                  | Percentage of onboard computer memory currently being utilized.                                    |
+| `reaction_wheel_speed`          | Rotational speed of the reaction wheel used for spacecraft attitude control.                       |
+| `reaction_wheel_temperature`    | Operating temperature of the spacecraft's reaction wheel in degrees Celsius.                       |
+| `attitude_x`                    | Spacecraft orientation measurement along the X-axis.                                               |
+| `attitude_y`                    | Spacecraft orientation measurement along the Y-axis.                                               |
+| `attitude_z`                    | Spacecraft orientation measurement along the Z-axis.                                               |
+| `communication_signal_strength` | Received communication signal strength between the spacecraft and ground station, measured in dBm. |
+| `data_rate`                     | Rate at which telemetry or communication data is transmitted by the spacecraft.                    |
+| `propellant_level`              | Estimated percentage of remaining spacecraft propellant.                                           |
+| `anomaly_type`                  | Identifies the type of abnormal spacecraft behavior or `Normal` when no anomaly is present.        |
+| `anomaly_flag`                  | Indicates whether an observation is anomalous (`1`) or normal (`0`).                               |
+
+---
+
+# Simulated Anomalies
+
+To make the dataset useful for machine learning, several types of spacecraft anomalies have been simulated.
+
+### Battery Overheating
+
+The system observes a combination of:
+
+* Increasing battery temperature
+* Decreasing battery voltage
+* Increasing battery current
+
+### Power Instability
+
+The telemetry shows unusual fluctuations in:
+
+* Battery voltage
+* Battery current
+* Solar-panel current
+
+### Thermal Excursion
+
+The system introduces abnormal increases in:
+
+* CPU temperature
+* Battery temperature
+* CPU load
+
+### Reaction Wheel Anomaly
+
+The reaction wheel starts operating outside its usual pattern, accompanied by an increase in temperature.
+
+### Communication Degradation
+
+The communication subsystem experiences:
+
+* Reduced signal strength
+* Reduced data rate
+
+These anomalies give us known examples that can be used to train and evaluate anomaly-detection techniques.
+
+---
+
+# Time-Series Analysis
+
+Time-series analysis is one of the main parts of this project.
+
+Before applying machine learning, we first try to understand how spacecraft telemetry behaves over time.
+
+Some of the things we investigate include:
+
+* Trends
+* Cyclic behavior
+* Seasonal patterns
+* Correlations between telemetry variables
+* Autocorrelation
+* Partial autocorrelation
+* Stationarity
+* Time-series decomposition
+
+We use techniques such as:
+
+```text
+ADF Test
+KPSS Test
+ACF
+PACF
+Time-Series Decomposition
+```
+
+This helps us understand whether a traditional time-series model is appropriate and what kind of temporal relationships exist in the data.
+
+---
+
+# Feature Engineering
+
+The raw telemetry isn't enough for the ML models, so we create additional time-based features.
+
+### Lag Features
+
+For example:
+
+```text
+temperature_t-1
+temperature_t-5
+temperature_t-10
+temperature_t-30
+temperature_t-60
+```
+
+These allow the model to understand how previous spacecraft states influence future states.
+
+### Rolling Features
+
+We also calculate things such as:
+
+```text
+rolling_mean
+rolling_std
+rolling_min
+rolling_max
+```
+
+over different time windows.
+
+### Time Features
+
+We can extract:
+
+```text
+hour
+day
+day_of_week
+month
+mission_phase
+```
+
+and use cyclical encoding where appropriate.
+
+---
+
+# Forecasting Models
+
+The project compares different approaches rather than relying on a single model.
+
+### Classical Time-Series Models
+
+* Moving Average
+* Exponential Smoothing
+* ARIMA
+* SARIMA
+
+### Machine Learning Models
+
+* Random Forest
+* XGBoost
+* LightGBM
+
+### Deep Learning Models
+
+* LSTM
+* GRU
+
+This allows us to compare traditional statistical approaches with modern ML and deep-learning approaches.
+
+The models are evaluated using chronological and walk-forward validation so that future information doesn't accidentally leak into the training data.
+
+---
+
+# Anomaly Detection
+
+Forecasting tells us what may happen next, but we also need to identify unusual behavior.
+
+The project explores multiple anomaly-detection approaches.
+
+### Statistical Methods
+
+* Z-score
+* IQR
+* Rolling statistics
+* Forecast residuals
+
+### Machine Learning Methods
+
+* Isolation Forest
+* One-Class SVM
+
+### Deep Learning
+
+* Autoencoder
+* LSTM Autoencoder
+
+The goal isn't simply to say:
+
+> "This value is high."
+
+Instead, we want to understand:
+
+> "Is this value unusual considering the spacecraft's recent behavior and operating conditions?"
+
+---
+
+# Explainable AI
+
+Machine-learning predictions aren't always easy to understand.
+
+To make the system more transparent, we use **SHAP** to investigate which features contributed to a prediction.
+
+For example:
+
+```text
+High battery temperature prediction
+
+Main contributing features:
+
+battery_temperature_lag_1
+battery_current
+cpu_load
+battery_voltage
+solar_panel_current
+```
+
+The Agentic AI layer can then convert these model outputs into a more understandable explanation.
+
+---
+
+# Agentic AI
+
+This is where the project goes beyond a normal ML forecasting system.
+
+Instead of having one large AI component, we use specialized agents.
+
+### Supervisor Agent
+
+Acts as the coordinator.
+
+It understands the user's request and decides what needs to be done.
+
+### Telemetry Agent
+
+Retrieves and analyzes spacecraft telemetry.
+
+### Forecast Agent
+
+Uses the trained forecasting models to predict future telemetry.
+
+### Anomaly Agent
+
+Runs anomaly-detection models and identifies unusual behavior.
+
+### Diagnosis Agent
+
+Looks across different spacecraft subsystems to investigate possible causes.
+
+### Knowledge Agent
+
+Uses RAG to retrieve relevant information from the spacecraft knowledge base.
+
+### Recommendation Agent
+
+Combines the available information and generates a mission-support recommendation.
+
+### Monitoring Agent
+
+Checks what happened after a simulated action or recommendation.
+
+---
+
+# How an Agent Investigation Works
+
+Suppose the user asks:
+
+> **"Why is the spacecraft battery temperature increasing?"**
+
+The system could work like this:
+
+```text
+User Question
+      ↓
+Supervisor Agent
+      ↓
+Telemetry Agent
+      ↓
+Anomaly Agent
+      ↓
+Forecast Agent
+      ↓
+Diagnosis Agent
+      ↓
+Knowledge Agent
+      ↓
+Recommendation Agent
+      ↓
+Final Explanation
+```
+
+The important part is that the agents can **use tools and models rather than simply guessing an answer**.
+
+---
+
+# Agent Tools
+
+The agents can interact with functions such as:
+
+```text
+get_current_telemetry()
+get_historical_telemetry()
+forecast_telemetry()
+detect_anomaly()
+get_subsystem_status()
+get_operating_limits()
+search_mission_documents()
+calculate_risk()
+simulate_action()
+monitor_action()
+```
+
+For example, if the user asks:
+
+> "Is the battery temperature likely to become abnormal in the next 30 minutes?"
+
+the agent can call the forecasting tool, inspect the result, compare it with historical behavior, and then provide an explanation.
+
+---
+
+# Retrieval-Augmented Generation
+
+The Agentic AI system can also retrieve information from a domain-specific knowledge base.
+
+The knowledge base can contain:
+
+* Telemetry documentation
+* Subsystem descriptions
+* Operating limits
+* Mission procedures
+* Fault-handling procedures
+* Technical documentation
+
+The basic RAG pipeline is:
+
+```text
+Documents
+    ↓
+Chunking
+    ↓
+Embeddings
+    ↓
+Vector Database
+    ↓
+Retriever
+    ↓
+Relevant Information
+    ↓
+LLM
+```
+
+This helps ground the agent's responses in the available technical information.
+
+---
+
+# Memory
+
+The system can maintain two types of memory.
+
+### Short-Term Memory
+
+Keeps track of the current investigation and conversation.
+
+### Long-Term Memory
+
+Can store useful historical information such as:
+
+* Previous anomalies
+* Frequently affected subsystems
+* Previous recommendations
+* Historical spacecraft behavior
+
+---
+
+# Feedback Loop
+
+One of the more advanced parts of the project is the feedback loop.
+
+Instead of stopping after a recommendation:
+
+```text
+Detect
+  ↓
+Analyze
+  ↓
+Recommend
+```
+
+we want:
+
+```text
+Detect
+  ↓
+Analyze
+  ↓
+Recommend
+  ↓
+Human Approval
+  ↓
+Simulated Action
+  ↓
+Monitor
+  ↓
+Compare Expected vs Actual
+  ↓
+Feedback
+  ↓
+Re-analyze if necessary
+```
+
+This gives the system a more realistic agentic workflow.
+
+---
+
+# Safety
+
+This project works with a **simulated spacecraft environment**.
+
+The system is not intended to control a real spacecraft.
+
+For potentially important actions, the architecture includes a human-in-the-loop step:
+
+```text
+Agent Recommendation
+        ↓
+Safety Checks
+        ↓
+Human Approval
+        ↓
+Simulated Action
+```
+
+This keeps the project focused on AI/ML research and engineering rather than real-world spacecraft control.
+
+---
+
+# Dashboard
+
+The final application will provide a dashboard showing things such as:
+
+* Current spacecraft status
+* Battery status
+* CPU status
+* Temperature
+* Communication status
+* Telemetry graphs
+* Forecasts
+* Detected anomalies
+* Affected subsystem
+* Model explanations
+* Agent recommendations
+* Investigation history
+
+A chat interface can also allow users to ask questions about the spacecraft.
+
+Example:
+
+```text
+User:
+"Show me the recent battery anomalies."
+
+Agent:
+"I found 3 unusual battery events in the
+last 24 hours. The most significant event
+occurred at 14:32 and was associated with
+increasing battery temperature and a
+decrease in voltage."
+```
+
+---
+
+# Technology Stack
+
+### Data and Machine Learning
+
+```text
+Python
+NumPy
+Pandas
+Scikit-learn
+Statsmodels
+XGBoost
+LightGBM
+PyTorch
+```
+
+### Time-Series
+
+```text
+ARIMA
+SARIMA
+LSTM
+GRU
+ACF / PACF
+ADF / KPSS
+Walk-Forward Validation
+```
+
+### Explainability
+
+```text
+SHAP
+```
+
+### Agentic AI
+
+```text
+LLM
+LangGraph
+Tool Calling
+RAG
+Embeddings
+Vector Database
+Multi-Agent Systems
+```
+
+### Backend and Database
+
+```text
+FastAPI
+PostgreSQL
+```
+
+### Interface
+
+```text
+Streamlit
+```
+
+### Deployment
+
+```text
+Docker
+Docker Compose
+Git
+GitHub
+```
+
+---
+
+# Project Structure
+
+```text
+spacecraft-agent/
+│
+├── data/
+│   ├── raw/
+│   └── processed/
+│
+├── notebooks/
+│   ├── 01_data_understanding.ipynb
+│   ├── 02_data_cleaning.ipynb
+│   ├── 03_eda.ipynb
+│   ├── 04_time_series_analysis.ipynb
+│   ├── 05_feature_engineering.ipynb
+│   ├── 06_sarima.ipynb
+│   ├── 07_xgboost_forecasting.ipynb
+│   ├── 08_lstm_gru.ipynb
+│   ├── 09_anomaly_detection.ipynb
+│   └── 10_shap_explainability.ipynb
+│
+├── src/
+│   ├── data/
+│   ├── preprocessing/
+│   ├── features/
+│   ├── forecasting/
+│   ├── anomaly_detection/
+│   ├── explainability/
+│   ├── agents/
+│   ├── tools/
+│   ├── rag/
+│   └── api/
+│
+├── knowledge_base/
+│
+├── dashboard/
+│
+├── tests/
+│
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
+├── .gitignore
+└── README.md
+```
+
+---
+
+# Getting Started
+
+Clone the repository:
+
+```bash
+git clone <repository-url>
+cd spacecraft-agent
+```
+
+Create a virtual environment:
+
+```bash
+python -m venv venv
+```
+
+Activate it on Linux/macOS:
+
+```bash
+source venv/bin/activate
+```
+
+On Windows:
+
+```bash
+venv\Scripts\activate
+```
+
+Install the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+The complete project will be developed incrementally, starting with the data and ML pipeline before adding the Agentic AI layer.
+
+---
+
+# Development Roadmap
+
+The project will be built in stages.
+
+### Phase 1 — Data
+
+* [x] Generate spacecraft telemetry dataset
+* [ ] Understand the dataset
+* [ ] Data cleaning
+* [ ] Handle missing values
+* [ ] Validate telemetry
+
+### Phase 2 — Time-Series Analysis
+
+* [ ] Exploratory Data Analysis
+* [ ] Trend analysis
+* [ ] Seasonality analysis
+* [ ] Stationarity
+* [ ] ACF/PACF
+* [ ] Time-series decomposition
+
+### Phase 3 — Machine Learning
+
+* [ ] Feature engineering
+* [ ] Baseline model
+* [ ] XGBoost
+* [ ] LightGBM
+* [ ] Model evaluation
+
+### Phase 4 — Deep Learning
+
+* [ ] LSTM
+* [ ] GRU
+* [ ] Multivariate forecasting
+* [ ] Model comparison
+
+### Phase 5 — Anomaly Detection
+
+* [ ] Statistical detection
+* [ ] Isolation Forest
+* [ ] Autoencoder
+* [ ] Anomaly classification
+
+### Phase 6 — Explainability
+
+* [ ] SHAP
+* [ ] Feature importance
+* [ ] Prediction explanations
+
+### Phase 7 — Agentic AI
+
+* [ ] LLM integration
+* [ ] Tool calling
+* [ ] RAG
+* [ ] Agent memory
+* [ ] Supervisor agent
+* [ ] Specialized agents
+* [ ] LangGraph workflow
+* [ ] Feedback loop
+* [ ] Guardrails
+
+### Phase 8 — Application
+
+* [ ] FastAPI backend
+* [ ] PostgreSQL
+* [ ] Streamlit dashboard
+* [ ] Agent chat interface
+
+### Phase 9 — Deployment
+
+* [ ] Docker
+* [ ] Docker Compose
+* [ ] Testing
+* [ ] Logging
+* [ ] Monitoring
+* [ ] Deployment
+
+---
+
+# What I Want to Learn From This Project
+
+This project is not just about building a chatbot.
+
+The goal is to understand how different technologies can work together:
+
+```text
+Statistics
+    +
+Time-Series Analysis
+    +
+Machine Learning
+    +
+Deep Learning
+    +
+Anomaly Detection
+    +
+Explainable AI
+    +
+LLMs
+    +
+RAG
+    +
+Agentic AI
+    +
+Backend Engineering
+    +
+Deployment
+```
+
+The final system should demonstrate that an AI application can **observe data, use specialized ML tools, investigate problems, retrieve knowledge, reason over the results, and provide useful recommendations**.
+
+---
+
+# Disclaimer
+
+This project uses **synthetically generated spacecraft telemetry** and a simulated spacecraft environment.
+
+It is intended for:
+
+* Learning
+* Research
+* Machine-learning experimentation
+* Agentic AI experimentation
+* Portfolio development
+* Placement preparation
+
+It is **not intended for real spacecraft operations or safety-critical decision-making**.
